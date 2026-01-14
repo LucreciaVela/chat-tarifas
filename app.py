@@ -152,19 +152,25 @@ mensaje_url = urllib.parse.quote(mensaje_compartir)
 
 whatsapp_link = f"https://wa.me/?text={mensaje_url}"
 
-st.markdown(
-    f"""
-    📲 **Compartir consulta:**
-    
-    👉 [Enviar por WhatsApp]({whatsapp_link})  
-    👉 [Compartir en redes](https://www.addtoany.com/share)
-    """,
-    unsafe_allow_html=True
-)
-            respuesta = "¿Querés consultar otro destino o puedo ayudarte en algo más?"
+with st.chat_message("assistant"):
+            st.markdown(
+                f"""
+                📲 **Compartir consulta:**
 
-    st.session_state.mensajes.append({"role": "assistant", "content": respuesta})
-    with st.chat_message("assistant"):
-        st.markdown(respuesta)
+                👉 [Enviar por WhatsApp]({whatsapp_link})  
+                👉 [Compartir en redes](https://www.addtoany.com/share)
+                """,
+                unsafe_allow_html=True
+            )
+
+        respuesta = "¿Querés consultar otro destino o puedo ayudarte en algo más?"
+
+        st.session_state.mensajes.append(
+            {"role": "assistant", "content": respuesta}
+        )
+        with st.chat_message("assistant"):
+            st.markdown(respuesta)
+
+
 
 
