@@ -134,14 +134,37 @@ if consulta:
                 st.markdown(
                     f"🚌 Tarifas para viajar de **{origen.title()}** a **{destino.title()}**:"
                 )
-                st.dataframe(
-                    resumen[["EMPRESA", "Tarifa ($)"]],
-                    use_container_width=True
-                )
+                tabla = resumen[["EMPRESA", "Tarifa ($)"]].reset_index(drop=True)
 
+st.dataframe(
+    tabla,
+    use_container_width=True,
+    hide_index=True
+)
+import urllib.parse
+
+mensaje_compartir = (
+    f"Consulté las tarifas para viajar de {origen.title()} a {destino.title()} "
+    f"en Chat Tarifas 🚌"
+)
+
+mensaje_url = urllib.parse.quote(mensaje_compartir)
+
+whatsapp_link = f"https://wa.me/?text={mensaje_url}"
+
+st.markdown(
+    f"""
+    📲 **Compartir consulta:**
+    
+    👉 [Enviar por WhatsApp]({whatsapp_link})  
+    👉 [Compartir en redes](https://www.addtoany.com/share)
+    """,
+    unsafe_allow_html=True
+)
             respuesta = "¿Querés consultar otro destino o puedo ayudarte en algo más?"
 
     st.session_state.mensajes.append({"role": "assistant", "content": respuesta})
     with st.chat_message("assistant"):
         st.markdown(respuesta)
+
 
