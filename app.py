@@ -4,7 +4,7 @@ import unicodedata
 import re
 
 # ============================================================
-# CONFIGURACIÓN GENERAL
+# CONFIGURACIÓN
 # ============================================================
 st.set_page_config(
     page_title="Chat Tarifas",
@@ -13,7 +13,7 @@ st.set_page_config(
 )
 
 # ============================================================
-# FUNCIONES AUXILIARES
+# FUNCIONES DE TEXTO
 # ============================================================
 def normalizar(texto):
     if pd.isna(texto):
@@ -26,21 +26,8 @@ def normalizar(texto):
     return texto.strip()
 
 
-def extraer_origen_destino(texto):
-    texto_n = normalizar(texto)
-
-    # Caso: "de cordoba a rio cuarto"
-    match = re.search(r"de (.+?) a (.+)", texto_n)
-    if match:
-        return match.group(1), match.group(2)
-
-    # Caso: "a rio cuarto" o "rio cuarto"
-    match = re.search(r"a (.+)", texto_n)
-    if match:
-        return "cordoba", match.group(1)
-
-    # Caso: solo destino
-    return "cordoba", texto_n
+def formatear_pesos(valor):
+    return "$ {:,.2f}".format(valor).replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def es_saludo(texto):
@@ -48,7 +35,22 @@ def es_saludo(texto):
 
 
 def es_despedida(texto):
-    return texto in ["gracias", "chau", "adios", "hasta luego"]
+    return texto in ["gracias", "no gracias", "chau", "adios", "hasta luego"]
+
+
+def extraer_origen_destino(texto):
+    t = normalizar(texto)
+
+    match = re.search(r"de (.+?) a (.+)", t)
+    if match:
+        return match.group(1), match.group(2)
+
+    match = re.search(r"a (.+)", t)
+    if match:
+        return "cordoba", match.group(1)
+
+    # solo destino
+    return "cordoba", t
 
 # ============================================================
 # CARGA DE DATOS
@@ -56,15 +58,14 @@ def es_despedida(texto):
 @st.cache_data
 def cargar_datos():
     df = pd.read_csv("tarifas_unificadas.csv", sep=";", encoding="utf-8")
-
     df.columns = [c.strip().upper() for c in df.columns]
 
-    # ⚠️ AJUSTÁ ESTA LÍNEA SI TU COLUMNA SE LLAMA DISTINTO
-    COLUMNA_TARIFA = [c for c in df.columns if "TARIFA" in c or "PRECIO" in c][0]
+    # detectar columna tarifa
+    col_tarifa = [c for c in df.columns if "TARIFA" in c or "PRECIO" in c][0]
 
     df["ORIGEN_N"] = df["ORIGEN"].apply(normalizar)
     df["DESTINO_N"] = df["DESTINO"].apply(normalizar)
-    df["TARIFA_USAR"] = df[COLUMNA_TARIFA]
+    df["TARIFA_NUM"] = pd.to_numeric(df[col_tarifa], errors="coerce")
 
     return df
 
@@ -86,10 +87,7 @@ st.markdown(
 
 if "mensajes" not in st.session_state:
     st.session_state.mensajes = [
-        {
-            "role": "assistant",
-            "content": "Hola 😊 ¿A qué destino querés viajar?"
-        }
+        {"role": "assistant", "content": "Hola 😊 ¿A qué destino querés viajar?"}
     ]
 
 for m in st.session_state.mensajes:
@@ -106,35 +104,44 @@ if consulta:
     texto_n = normalizar(consulta)
 
     if es_saludo(texto_n):
-        respuesta = "¡Hola! 😊 Decime a qué destino querés viajar."
+        respuesta = "¡Hola! 😊 ¿Querés consultar la tarifa de algún destino?"
+
     elif es_despedida(texto_n):
-        respuesta = "¡Gracias por consultar! Si necesitás otra tarifa, avisame 🚌"
+        respuesta = "¡Perfecto! 🙌 Si más tarde necesitás consultar otra tarifa, acá estoy."
+
     else:
         origen, destino = extraer_origen_destino(consulta)
 
-        resultados = df[
+        filtro = df[
             df["ORIGEN_N"].str.contains(origen) &
             df["DESTINO_N"].str.contains(destino)
         ]
 
-        if resultados.empty:
+        if filtro.empty:
             respuesta = "No encontré tarifas para ese destino. ¿Querés probar con otro?"
+
         else:
+            resumen = (
+                filtro
+                .groupby("EMPRESA", as_index=False)
+                .agg({"TARIFA_NUM": "min"})
+                .sort_values("TARIFA_NUM")
+            )
+
+            resumen["Tarifa ($)"] = resumen["TARIFA_NUM"].apply(formatear_pesos)
+
             with st.chat_message("assistant"):
                 st.markdown(
-                    f"🚌 Opciones para viajar de **{origen.title()}** a **{destino.title()}**:"
+                    f"🚌 Tarifas para viajar de **{origen.title()}** a **{destino.title()}**:"
                 )
                 st.dataframe(
-                    resultados[["EMPRESA", "MODALIDAD", "TARIFA_USAR"]]
-                    .rename(columns={"TARIFA_USAR": "Tarifa ($)"}),
+                    resumen[["EMPRESA", "Tarifa ($)"]],
                     use_container_width=True
                 )
 
-            respuesta = "¿Querés consultar otro destino?"
+            respuesta = "¿Querés consultar otro destino o puedo ayudarte en algo más?"
 
     st.session_state.mensajes.append({"role": "assistant", "content": respuesta})
     with st.chat_message("assistant"):
         st.markdown(respuesta)
-
-
 
