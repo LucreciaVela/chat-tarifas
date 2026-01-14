@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import unicodedata
 import re
-
+from difflib import SequenceMatcher
 # ------------------------------------------------------------
 # CONFIGURACIÓN GENERAL
 # ------------------------------------------------------------
@@ -16,6 +16,34 @@ st.set_page_config(
 # FUNCIONES DE NORMALIZACIÓN Y LENGUAJE
 # ------------------------------------------------------------
 def normalizar_texto(texto):
+    def palabras_similares(p1, p2, umbral=0.8):
+    """
+    Devuelve True si dos palabras son suficientemente parecidas
+    """
+    return SequenceMatcher(None, p1, p2).ratio() >= umbral
+    PALABRAS_RUIDO = [
+    "TERMINAL", "CENTRO", "CIUDAD", "BARRIO",
+    "PROVINCIA", "CORDOBA", "CBA", "PCIA",
+    "DE", "DEL", "LA", "EL"
+]
+
+def limpiar_localidad(texto):
+    def coincide_destino(tokens_fila, tokens_usuario):
+    """
+    Devuelve True si todos los tokens del usuario
+    encuentran match (exacto o similar) en la fila
+    """
+    for t_usuario in tokens_usuario:
+        if not any(
+            t_usuario == t_fila or palabras_similares(t_usuario, t_fila)
+            for t_fila in tokens_fila
+        ):
+            return False
+    return True
+    texto = normalizar_texto(texto)
+    tokens = texto.split()
+    tokens = [t for t in tokens if t not in PALABRAS_RUIDO]
+    return tokens
     if pd.isna(texto):
         return ""
     texto = str(texto).upper()
@@ -77,6 +105,8 @@ def cargar_datos():
 
     df["ORIGEN_NORM"] = df["ORIGEN"].apply(normalizar_texto)
     df["DESTINO_NORM"] = df["DESTINO"].apply(normalizar_texto)
+    df["ORIGEN_TOKENS"] = df["ORIGEN"].apply(limpiar_localidad)
+    df["DESTINO_TOKENS"] = df["DESTINO"].apply(limpiar_localidad)
 
     return df
 
@@ -153,10 +183,18 @@ if consulta:
                 "- *de Córdoba a Carlos Paz*"
             )
         else:
-            resultados = df_tarifas[
-                (df_tarifas["ORIGEN_NORM"].str.contains(origen)) &
-                (df_tarifas["DESTINO_NORM"].str.contains(destino))
-            ]
+           tokens_destino_usuario = limpiar_localidad(destino)
+tokens_origen_usuario = limpiar_localidad(origen)
+
+mask_destino = df_tarifas["DESTINO_TOKENS"].apply(
+    lambda x: coincide_destino(x, tokens_destino_usuario)
+)
+
+mask_origen = df_tarifas["ORIGEN_TOKENS"].apply(
+    lambda x: coincide_destino(x, tokens_origen_usuario)
+)
+
+resultados = df_tarifas[mask_origen & mask_destino]
 
             if resultados.empty:
                 respuesta = (
@@ -202,6 +240,7 @@ if consulta:
     )
     with st.chat_message("assistant"):
         st.markdown(respuesta)
+
 
 
 
