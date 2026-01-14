@@ -152,7 +152,7 @@ mensaje_url = urllib.parse.quote(mensaje_compartir)
 
 whatsapp_link = f"https://wa.me/?text={mensaje_url}"
 
-with st.chat_message("assistant"):
+ with st.chat_message("assistant"):
             st.markdown(
                 f"""
                 📲 **Compartir consulta:**
@@ -168,9 +168,6 @@ with st.chat_message("assistant"):
         st.session_state.mensajes.append(
             {"role": "assistant", "content": respuesta}
         )
+
         with st.chat_message("assistant"):
             st.markdown(respuesta)
-
-
-
-
