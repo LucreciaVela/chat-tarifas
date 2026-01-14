@@ -104,12 +104,15 @@ def cargar_datos():
     df.columns = [c.strip().upper() for c in df.columns]
 
     columnas = {
-        "EMPRESA": ["EMPRESA", "EMPRESA PRESTADORA"],
-        "MODALIDAD": ["MODALIDAD", "TIPO SERVICIO"],
-        "ORIGEN": ["ORIGEN", "LOCALIDAD ORIGEN"],
-        "DESTINO": ["DESTINO", "LOCALIDAD DESTINO"],
-        "TARIFA": ["TARIFA", "PRECIO", "IMPORTE"]
-    }
+    "EMPRESA": ["EMPRESA", "EMPRESA PRESTADORA"],
+    "MODALIDAD": ["MODALIDAD", "TIPO SERVICIO"],
+    "ORIGEN": ["ORIGEN", "LOCALIDAD ORIGEN"],
+    "DESTINO": ["DESTINO", "LOCALIDAD DESTINO"],
+    "TARIFA": [
+        c for c in df.columns
+        if "TARIFA" in c or "PRECIO" in c or "IMPORTE" in c or "$" in c
+    ]
+}
 
     for col_std, posibles in columnas.items():
         for p in posibles:
@@ -242,3 +245,4 @@ if consulta:
     )
     with st.chat_message("assistant"):
         st.markdown(respuesta)
+
