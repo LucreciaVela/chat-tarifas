@@ -53,7 +53,11 @@ def extraer_tramo(texto):
 # ------------------------------------------------------------
 @st.cache_data
 def cargar_datos():
-    df = pd.read_csv("tarifas_unificadas.csv")
+    df = pd.read_csv(
+        "tarifas_unificadas.csv",
+        sep=";",
+        encoding="utf-8"
+    )
 
     df["ORIGEN_NORM"] = df["ORIGEN"].apply(normalizar_texto)
     df["DESTINO_NORM"] = df["DESTINO"].apply(normalizar_texto)
@@ -148,3 +152,4 @@ if consulta:
                     }),
                     use_container_width=True
                 )
+
